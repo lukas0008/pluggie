@@ -29,13 +29,23 @@ impl PluggieCtx {
         EventSender(sender)
     }
     pub fn subscribe<'a, T: Event + Clone, F: Fn(&EventRef<T>) + 'static>(&self, f: F) {
+        self.subscribe_with_priority(f, 0.0);
+    }
+    pub fn subscribe_with_priority<'a, T: Event + Clone, F: Fn(&EventRef<T>) + 'static>(
+        &self,
+        f: F,
+        priority: f32,
+    ) {
         let mut lock = self.0.lock();
-        lock.subscribe::<T>(Box::new(move |ptr| {
-            let event_ref = unsafe { from_void::<EventRef<T>>(ptr) };
-            // println!("Received event: {:p}", event_ref);
-            black_box(event_ref.to_raw_ptr());
-            f(black_box(event_ref));
-        }));
+        lock.subscribe::<T>(
+            Box::new(move |ptr| {
+                let event_ref = unsafe { from_void::<EventRef<T>>(ptr) };
+                // println!("Received event: {:p}", event_ref);
+                black_box(event_ref.to_raw_ptr());
+                f(black_box(event_ref));
+            }),
+            priority,
+        );
     }
 }
 

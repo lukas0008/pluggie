@@ -1,8 +1,11 @@
 #![feature(unboxed_closures)]
 #![feature(fn_traits)]
 
-use crate::event::Event;
-use abi_stable::StableAbi;
+use crate::{
+    event::Event,
+    plugin::{PluginInfo, PluginRef},
+};
+use abi_stable::{StableAbi, std_types::RVec};
 
 pub mod event;
 pub mod event_hooks;
@@ -18,7 +21,7 @@ pub mod reexports {
 pub const VERSION: u32 = 0;
 
 #[macro_export]
-macro_rules! event_name {
+macro_rules! name_hash {
     ($name: expr) => {
         pluggie::reexports::sha2_const::Sha256::new()
             .update($name.as_bytes())
@@ -26,9 +29,11 @@ macro_rules! event_name {
     };
 }
 
-#[derive(StableAbi, Copy, Clone)]
+#[derive(StableAbi, Clone)]
 #[repr(transparent)]
-pub struct AllLoadedEvent;
+pub struct AllLoadedEvent {
+    pub plugins: RVec<PluginRef>,
+}
 
 pub unsafe fn to_void<'a, T: Sized>(value: &'a T) -> usize {
     unsafe { std::mem::transmute(value) }
@@ -39,5 +44,6 @@ pub unsafe fn from_void<'a, T: Sized>(ptr: usize) -> &'a T {
 }
 
 impl Event for AllLoadedEvent {
-    const NAME: [u8; 32] = sha2_const::Sha256::new().update(b"all_loaded").finalize();
+    const NAME: &'static str = "pluggie:all_loaded";
+    // const NAME_HASH: [u8; 32] = sha2_const::Sha256::new().update(b"all_loaded").finalize();
 }

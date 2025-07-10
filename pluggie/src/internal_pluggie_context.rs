@@ -18,15 +18,22 @@ use crate::event::Event;
 
 #[derive(StableAbi)]
 #[repr(C)]
+pub struct ChannelFunc {
+    func: *mut c_void,
+    priority: f32,
+}
+
+#[derive(StableAbi)]
+#[repr(C)]
 pub struct InternalPluggieCtx {
     // channels_subscribes: RHashMap<[u8; 32], RReceiver<usize>>,
-    channel_calls: RHashMap<[u8; 32], RArc<RRwLock<RVec<*mut c_void>>>>,
+    channel_calls: RHashMap<[u8; 32], RArc<RRwLock<RVec<ChannelFunc>>>>,
 }
 
 pub struct InternalEventSender<T: Event> {
     // sender: crossbeam_channel::RSender<usize>,
     // callers: RwLock<Vec<Box<dyn Fn(T)>>>,
-    callers: RArc<RRwLock<RVec<*mut c_void>>>,
+    callers: RArc<RRwLock<RVec<ChannelFunc>>>,
     event_type: PhantomData<T>,
 }
 
@@ -34,6 +41,7 @@ impl<T: Event> InternalEventSender<T> {
     pub(crate) fn call(&self, data: usize) {
         let lock = self.callers.read();
         for caller in lock.iter() {
+            let caller = &caller.func;
             unsafe {
                 let raw: *mut *mut dyn Fn(usize) = std::mem::transmute(*caller);
                 let closure_ptr = *raw;
@@ -56,7 +64,7 @@ impl InternalPluggieCtx {
         // let (sender, receiver) = crossbeam_channel::unbounded();
         // self.channels_subscribes.insert(T::NAME, receiver);
         let callers = RArc::new(RRwLock::new(RVec::new()));
-        self.channel_calls.insert(T::NAME, callers.clone());
+        self.channel_calls.insert(T::NAME_HASH, callers.clone());
         InternalEventSender {
             // sender,
             callers,
@@ -64,7 +72,7 @@ impl InternalPluggieCtx {
         }
     }
 
-    pub(crate) fn subscribe<T: Event>(&mut self, closure: Box<dyn Fn(usize)>) {
+    pub(crate) fn subscribe<T: Event>(&mut self, closure: Box<dyn Fn(usize)>, priority: f32) {
         // TODO: fix the memory leak here
         let raw = Box::into_raw(closure);
         let void_ptr = {
@@ -73,10 +81,14 @@ impl InternalPluggieCtx {
             void_ptr
         };
 
-        let calls = self.channel_calls.entry(T::NAME);
+        let calls = self.channel_calls.entry(T::NAME_HASH);
         let calls = calls.get().expect("Event was not registered");
         let mut calls = calls.write();
-        calls.push(void_ptr);
+        calls.push(ChannelFunc {
+            func: void_ptr,
+            priority,
+        });
+        calls.sort_by(|a, b| b.priority.partial_cmp(&a.priority).unwrap());
         // println!();
         // let receiver = self.channels_subscribes.get(&T::NAME).unwrap();
         // InternalEventReceiver {

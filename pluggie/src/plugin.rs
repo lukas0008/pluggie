@@ -8,7 +8,7 @@ use abi_stable::{
 
 use crate::internal_pluggie_context::InternalPluggieCtx;
 
-#[derive(StableAbi)]
+#[derive(StableAbi, Clone)]
 #[repr(C)]
 pub struct PluginInfo {
     pub name: RString,
@@ -17,44 +17,35 @@ pub struct PluginInfo {
     pub pluggie_version: u32,
 }
 
-#[derive(StableAbi)]
-#[sabi(kind(Prefix))]
-#[repr(C)]
-pub struct Plugin {
-    pub init: extern "C" fn(ctx: RArc<RMutex<InternalPluggieCtx>>),
-    pub plugin_info: extern "C" fn() -> PluginInfo,
-}
-
-#[derive(StableAbi)]
-#[sabi(kind(Prefix))]
+#[derive(StableAbi, Clone)]
 #[repr(C)]
 pub struct PluginRef {
     pub init: extern "C" fn(ctx: RArc<RMutex<InternalPluggieCtx>>),
-    pub plugin_info: extern "C" fn() -> PluginInfo,
+    pub plugin_info: PluginInfo,
 }
 
-impl RootModule for Plugin_Ref {
-    const BASE_NAME: &'static str = "plugin";
-    const NAME: &'static str = "plugin";
-    const VERSION_STRINGS: abi_stable::sabi_types::VersionStrings = package_version_strings!();
+#[macro_export]
+macro_rules! describe_plugin {
+    ($init:ident, $info: expr) => {
+        pub extern "C" fn __pluggie_init(
+            ctx: abi_stable::std_types::RArc<
+                abi_stable::external_types::RMutex<
+                    pluggie::internal_pluggie_context::InternalPluggieCtx,
+                >,
+            >,
+        ) {
+            // this is here so that the compiler doesn't complain about unused imports for PluginInfo, same with the pub extern "C" in __pluggie_init
+            let _ = $info;
+            $init(PluggieCtx::new(ctx));
+        }
 
-    declare_root_module_statics! {Plugin_Ref}
+        #[unsafe(no_mangle)]
+        #[cfg(feature = "init")]
+        pub extern "C" fn pluggie_def() -> pluggie::plugin::PluginRef {
+            pluggie::plugin::PluginRef {
+                init: __pluggie_init,
+                plugin_info: $info,
+            }
+        }
+    };
 }
-
-// #[macro_export]
-// macro_rules! describe_plugin {
-//     ($init:ident, $info: ident) => {
-//         #[unsafe(no_mangle)]
-//         #[cfg(feature = "init")]
-//         pub extern "C" fn pluggie_init(
-//             ctx: pluggie::reexports::abi_stable::std_types::RArc<
-//                 pluggie::reexports::abi_stable::external_types::RMutex<
-//                     pluggie::internal_pluggie_context::InternalPluggieCtx,
-//                 >,
-//             >,
-//         ) {
-//             let ctx = pluggie::pluggie_context::PluggieCtx::new(ctx);
-//             $init(ctx);
-//         }
-//     };
-// }

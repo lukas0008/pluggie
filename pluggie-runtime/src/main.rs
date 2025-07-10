@@ -1,8 +1,12 @@
 use std::sync::Arc;
 
-use abi_stable::{external_types::RMutex, std_types::RArc};
+use abi_stable::{
+    external_types::RMutex,
+    std_types::{RArc, RVec},
+};
 use pluggie::{
     AllLoadedEvent, internal_pluggie_context::InternalPluggieCtx, pluggie_context::PluggieCtx,
+    plugin::PluginRef,
 };
 
 fn main() {
@@ -30,11 +34,27 @@ fn main() {
     let local_ctx = PluggieCtx::new(ctx.clone());
     let loaded_event = local_ctx.register_event::<AllLoadedEvent>();
 
+    // extern "C" fn(RArc<RMutex<InternalPluggieCtx>>)
+    let mut plugin_refs = RVec::new();
     for plugin in plugins.iter() {
-        let init: libloading::Symbol<extern "C" fn(RArc<RMutex<InternalPluggieCtx>>)> =
-            unsafe { plugin.get(b"pluggie_init") }.unwrap();
-        init(ctx.clone());
+        // let init: libloading::Symbol<extern "C" fn(RArc<RMutex<InternalPluggieCtx>>)> =
+        //     unsafe { plugin.get(b"pluggie_init") }.unwrap();
+        // init(ctx.clone());
+        let init: libloading::Symbol<extern "C" fn() -> PluginRef> =
+            unsafe { plugin.get(b"pluggie_def") }.unwrap();
+        let plugin = init();
+        (plugin.init)(ctx.clone());
+        println!("{} loaded", plugin.plugin_info.name);
+        if plugin.plugin_info.pluggie_version != pluggie::VERSION {
+            panic!(
+                "Plugin {} has incompatible version",
+                plugin.plugin_info.name
+            );
+        }
+        plugin_refs.push(plugin);
     }
 
-    loaded_event.call(&AllLoadedEvent);
+    loaded_event.call(&AllLoadedEvent {
+        plugins: plugin_refs,
+    });
 }

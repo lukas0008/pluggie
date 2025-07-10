@@ -25,7 +25,6 @@ impl<T: Event> EventHooks<T> {
     // pub fn new() -> Self {}
 
     pub fn add_hook(&self, hook: Box<dyn Fn(&T)>) {
-        println!("hook added: {:p}", hook);
         let mut lock = self.internal.lock();
         // let raw = Box::into_raw(hook);
         let aaaa = Box::leak(hook);
