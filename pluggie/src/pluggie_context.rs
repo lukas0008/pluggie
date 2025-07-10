@@ -17,6 +17,10 @@ use crate::{
 
 #[derive(Clone)]
 pub struct PluggieCtx(RArc<RMutex<InternalPluggieCtx>>);
+
+unsafe impl Send for PluggieCtx {}
+unsafe impl Sync for PluggieCtx {}
+
 pub struct EventSender<T: Event>(InternalEventSender<T>);
 
 impl PluggieCtx {
@@ -28,10 +32,17 @@ impl PluggieCtx {
         let sender = lock.register_event::<T>();
         EventSender(sender)
     }
-    pub fn subscribe<'a, T: Event + Clone, F: Fn(EventRef<T>) + 'static>(&self, f: F) {
+    pub fn subscribe<'a, T: Event + Clone, F: Fn(EventRef<T>) + Send + Sync + 'static>(
+        &self,
+        f: F,
+    ) {
         self.subscribe_with_priority(f, 0.0);
     }
-    pub fn subscribe_with_priority<'a, T: Event + Clone, F: Fn(EventRef<T>) + 'static>(
+    pub fn subscribe_with_priority<
+        'a,
+        T: Event + Clone,
+        F: Fn(EventRef<T>) + Send + Sync + 'static,
+    >(
         &self,
         f: F,
         priority: f32,
