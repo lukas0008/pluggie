@@ -1,8 +1,6 @@
 use abi_stable::{
-    StableAbi, declare_root_module_statics,
+    StableAbi,
     external_types::RMutex,
-    library::RootModule,
-    package_version_strings,
     std_types::{RArc, RString},
 };
 
@@ -28,8 +26,8 @@ pub struct PluginRef {
 macro_rules! describe_plugin {
     ($init:ident, $info: expr) => {
         pub extern "C" fn __pluggie_init(
-            ctx: abi_stable::std_types::RArc<
-                abi_stable::external_types::RMutex<
+            ctx: pluggie::reexports::abi_stable::std_types::RArc<
+                pluggie::reexports::abi_stable::external_types::RMutex<
                     pluggie::internal_pluggie_context::InternalPluggieCtx,
                 >,
             >,

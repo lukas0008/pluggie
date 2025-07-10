@@ -6,7 +6,7 @@ use abi_stable::{
     std_types::{RBox, RVec},
 };
 
-use crate::{AllLoadedEvent, event::Event};
+use crate::event::Event;
 
 #[derive(StableAbi)]
 #[repr(C)]

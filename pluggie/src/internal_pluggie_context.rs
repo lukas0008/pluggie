@@ -1,17 +1,9 @@
-use std::{
-    ffi::c_void,
-    marker::PhantomData,
-    sync::{Arc, RwLock},
-};
+use std::{ffi::c_void, marker::PhantomData};
 
 use abi_stable::{
-    DynTrait, RRef, StableAbi,
-    external_types::{
-        RRwLock,
-        crossbeam_channel::{self, RReceiver, RSender},
-    },
-    reexports::SelfOps,
-    std_types::{RArc, RBox, RHashMap, RVec},
+    StableAbi,
+    external_types::RRwLock,
+    std_types::{RArc, RHashMap, RVec},
 };
 
 use crate::event::Event;
@@ -61,13 +53,14 @@ impl InternalPluggieCtx {
     }
 
     pub(crate) fn register_event<T: Event>(&mut self) -> InternalEventSender<T> {
-        // let (sender, receiver) = crossbeam_channel::unbounded();
-        // self.channels_subscribes.insert(T::NAME, receiver);
-        let callers = RArc::new(RRwLock::new(RVec::new()));
-        self.channel_calls.insert(T::NAME_HASH, callers.clone());
+        let entry = self.channel_calls.entry(T::NAME_HASH);
+        let entry = entry.or_insert_with(|| {
+            let callers = RArc::new(RRwLock::new(RVec::new()));
+            callers
+        });
         InternalEventSender {
             // sender,
-            callers,
+            callers: entry.clone(),
             event_type: PhantomData,
         }
     }
@@ -82,7 +75,10 @@ impl InternalPluggieCtx {
         };
 
         let calls = self.channel_calls.entry(T::NAME_HASH);
-        let calls = calls.get().expect("Event was not registered");
+        let calls = calls.or_insert_with(|| {
+            let callers = RArc::new(RRwLock::new(RVec::new()));
+            callers
+        });
         let mut calls = calls.write();
         calls.push(ChannelFunc {
             func: void_ptr,

@@ -1,10 +1,7 @@
 #![feature(unboxed_closures)]
 #![feature(fn_traits)]
 
-use crate::{
-    event::Event,
-    plugin::{PluginInfo, PluginRef},
-};
+use crate::{event::Event, plugin::PluginRef};
 use abi_stable::{StableAbi, std_types::RVec};
 
 pub mod event;

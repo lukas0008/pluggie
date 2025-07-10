@@ -9,7 +9,7 @@ use abi_stable::{
 use crate::{
     event::Event,
     event_hooks::{EventHooks, EventHooksInternal},
-    event_ref::EventRef,
+    event_ref::{EventRef, EventRefInternal},
     from_void,
     internal_pluggie_context::{InternalEventSender, InternalPluggieCtx},
     to_void,
@@ -28,20 +28,26 @@ impl PluggieCtx {
         let sender = lock.register_event::<T>();
         EventSender(sender)
     }
-    pub fn subscribe<'a, T: Event + Clone, F: Fn(&EventRef<T>) + 'static>(&self, f: F) {
+    pub fn subscribe<'a, T: Event + Clone, F: Fn(EventRef<T>) + 'static>(&self, f: F) {
         self.subscribe_with_priority(f, 0.0);
     }
-    pub fn subscribe_with_priority<'a, T: Event + Clone, F: Fn(&EventRef<T>) + 'static>(
+    pub fn subscribe_with_priority<'a, T: Event + Clone, F: Fn(EventRef<T>) + 'static>(
         &self,
         f: F,
         priority: f32,
     ) {
         let mut lock = self.0.lock();
+        let ctx = self.clone();
         lock.subscribe::<T>(
             Box::new(move |ptr| {
-                let event_ref = unsafe { from_void::<EventRef<T>>(ptr) };
+                let ctx = ctx.clone();
+                let event_ref = unsafe { from_void::<EventRefInternal<T>>(ptr) };
                 // println!("Received event: {:p}", event_ref);
                 black_box(event_ref.to_raw_ptr());
+                let event_ref = EventRef {
+                    internal: event_ref,
+                    ctx,
+                };
                 f(black_box(event_ref));
             }),
             priority,
@@ -51,7 +57,7 @@ impl PluggieCtx {
 
 impl<T: Event + Clone> EventSender<T> {
     pub fn call(&self, event: &T) {
-        let r = EventRef {
+        let r = EventRefInternal {
             event,
             hooks: RArc::new(EventHooks {
                 event_type: PhantomData,
