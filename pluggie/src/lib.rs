@@ -1,12 +1,17 @@
+#![feature(unboxed_closures)]
+#![feature(fn_traits)]
+
 use crate::event::Event;
 use abi_stable::StableAbi;
-use std::ffi::c_void;
 
 pub mod event;
+pub mod event_hooks;
+pub mod event_ref;
 pub mod internal_pluggie_context;
 pub mod pluggie_context;
 pub mod plugin;
 pub mod reexports {
+    pub use abi_stable;
     pub use sha2_const;
 }
 

@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 abi_stable = "0.11.3"
+libloading = "0.8.8"
 pluggie = { path = "../pluggie" }
