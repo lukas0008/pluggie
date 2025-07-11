@@ -1,4 +1,4 @@
-use std::{hint::black_box, marker::PhantomData};
+use std::{fmt::Debug, hint::black_box, marker::PhantomData};
 
 use abi_stable::{
     external_types::RMutex,
@@ -10,44 +10,41 @@ use crate::{
     event::Event,
     event_hooks::{EventHooks, EventHooksInternal},
     event_ref::{EventRef, EventRefInternal},
+    exposable::Exposable,
     from_void,
     internal_pluggie_context::{InternalEventSender, InternalPluggieCtx},
     to_void,
 };
 
 #[derive(Clone)]
-pub struct PluggieCtx(RArc<RMutex<InternalPluggieCtx>>);
+#[repr(C)]
+pub struct PluggieCtx {
+    internal: RArc<RMutex<InternalPluggieCtx>>,
+}
 
 unsafe impl Send for PluggieCtx {}
-unsafe impl Sync for PluggieCtx {}
 
 pub struct EventSender<T: Event>(InternalEventSender<T>);
+unsafe impl<T: Event> Send for EventSender<T> {}
 
 impl PluggieCtx {
     pub fn new(internal: RArc<RMutex<InternalPluggieCtx>>) -> Self {
-        Self(internal)
+        Self { internal }
     }
     pub fn register_event<T: Event>(&self) -> EventSender<T> {
-        let mut lock = self.0.lock();
+        let mut lock = self.internal.lock();
         let sender = lock.register_event::<T>();
         EventSender(sender)
     }
-    pub fn subscribe<'a, T: Event + Clone, F: Fn(EventRef<T>) + Send + Sync + 'static>(
-        &self,
-        f: F,
-    ) {
+    pub fn subscribe<'a, T: Event, F: Fn(EventRef<T>) + Send + Sync + 'static>(&self, f: F) {
         self.subscribe_with_priority(f, 0.0);
     }
-    pub fn subscribe_with_priority<
-        'a,
-        T: Event + Clone,
-        F: Fn(EventRef<T>) + Send + Sync + 'static,
-    >(
+    pub fn subscribe_with_priority<'a, T: Event, F: Fn(EventRef<T>) + Send + Sync + 'static>(
         &self,
         f: F,
         priority: f32,
     ) {
-        let mut lock = self.0.lock();
+        let mut lock = self.internal.lock();
         let ctx = self.clone();
         lock.subscribe::<T>(
             Box::new(move |ptr| {
@@ -64,9 +61,19 @@ impl PluggieCtx {
             priority,
         );
     }
+    pub fn expose<T: Exposable>(&self, value: T) {
+        let mut lock = self.internal.lock();
+        println!("Exposing {} ({:?})", T::NAME, T::NAME_HASH);
+        lock.expose(value);
+    }
+    pub fn get<T: Exposable + Debug>(&self) -> Option<T> {
+        let lock = self.internal.lock();
+        println!("Getting exposed value of {} ({:?})", T::NAME, T::NAME_HASH);
+        lock.get()
+    }
 }
 
-impl<T: Event + Clone> EventSender<T> {
+impl<T: Event> EventSender<T> {
     pub fn call(&self, event: &T) {
         let r = EventRefInternal {
             event,

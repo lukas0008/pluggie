@@ -1,12 +1,15 @@
 #![feature(unboxed_closures)]
 #![feature(fn_traits)]
+#![feature(tuple_trait)]
 
 use crate::{event::Event, plugin::PluginRef};
-use abi_stable::{StableAbi, std_types::RVec};
+use abi_stable::std_types::RVec;
 
+pub mod curry;
 pub mod event;
 pub mod event_hooks;
 pub mod event_ref;
+pub mod exposable;
 pub mod internal_pluggie_context;
 pub mod pluggie_context;
 pub mod plugin;
@@ -26,7 +29,7 @@ macro_rules! name_hash {
     };
 }
 
-#[derive(StableAbi, Clone)]
+#[derive(Clone)]
 #[repr(transparent)]
 pub struct AllLoadedEvent {
     pub plugins: RVec<PluginRef>,

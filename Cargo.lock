@@ -66,6 +66,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "anymap"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33954243bd79057c2de7338850b85983a44588021f8a5fee574a8888c6de4344"
+
+[[package]]
 name = "as_derive_utils"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -338,9 +344,11 @@ name = "pluggie"
 version = "0.1.0"
 dependencies = [
  "abi_stable",
+ "anymap",
  "crossbeam-channel",
  "pluggie-proc",
  "sha2-const",
+ "tuplestructops",
 ]
 
 [[package]]
@@ -430,6 +438,12 @@ name = "semver"
 version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56e6fa9c48d24d85fb3de5ad847117517440f6beceb7798af16b4a87d616b8d0"
+
+[[package]]
+name = "seq-macro"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1bc711410fbe7399f390ca1c3b60ad0f53f80e95c5eb935e52268a0e2cd49acc"
 
 [[package]]
 name = "serde"
@@ -546,6 +560,15 @@ name = "tstr_proc_macros"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e78122066b0cb818b8afd08f7ed22f7fdbc3e90815035726f0840d0d26c0747a"
+
+[[package]]
+name = "tuplestructops"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ad9c060cdae01839cb1afd4e0a9360cb3f125f168541d2c79143ab461087912"
+dependencies = [
+ "seq-macro",
+]
 
 [[package]]
 name = "typed-arena"

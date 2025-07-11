@@ -43,7 +43,7 @@ fn main() {
         let init: libloading::Symbol<extern "C" fn() -> PluginRef> =
             unsafe { plugin.get(b"pluggie_def") }.unwrap();
         let plugin = init();
-        (plugin.init)(ctx.clone());
+        (plugin.init)(local_ctx.clone());
         println!("{} loaded", plugin.plugin_info.name);
         if plugin.plugin_info.pluggie_version != pluggie::VERSION {
             panic!(

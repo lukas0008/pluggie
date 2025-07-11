@@ -1,12 +1,11 @@
-use std::{ffi::c_void, marker::PhantomData};
+use std::{ffi::c_void, fmt::Debug, hint::black_box, marker::PhantomData};
 
+use crate::{event::Event, exposable::Exposable, to_void};
 use abi_stable::{
     StableAbi,
     external_types::RRwLock,
     std_types::{RArc, RHashMap, RVec},
 };
-
-use crate::event::Event;
 
 #[derive(StableAbi)]
 #[repr(C)]
@@ -15,18 +14,18 @@ pub struct ChannelFunc {
     priority: f32,
 }
 
-#[derive(StableAbi)]
 #[repr(C)]
 pub struct InternalPluggieCtx {
     // channels_subscribes: RHashMap<[u8; 32], RReceiver<usize>>,
     channel_calls: RHashMap<[u8; 32], RArc<RRwLock<RVec<ChannelFunc>>>>,
+    exposed: RHashMap<[u8; 32], usize>,
 }
 
 pub struct InternalEventSender<T: Event> {
     // sender: crossbeam_channel::RSender<usize>,
     // callers: RwLock<Vec<Box<dyn Fn(T)>>>,
-    callers: RArc<RRwLock<RVec<ChannelFunc>>>,
-    event_type: PhantomData<T>,
+    pub(crate) callers: RArc<RRwLock<RVec<ChannelFunc>>>,
+    pub(crate) event_type: PhantomData<T>,
 }
 
 impl<T: Event> InternalEventSender<T> {
@@ -49,6 +48,7 @@ impl InternalPluggieCtx {
         Self {
             // channels_subscribes: RHashMap::new(),
             channel_calls: RHashMap::new(),
+            exposed: RHashMap::new(),
         }
     }
 
@@ -92,5 +92,24 @@ impl InternalPluggieCtx {
         //     event_type: PhantomData,
         //
         // }
+    }
+
+    pub(crate) fn expose<T: Exposable>(&mut self, value: T) {
+        let boxed = Box::new(value);
+        let ptr = Box::leak(boxed);
+        self.exposed.insert(T::NAME_HASH, unsafe { to_void(ptr) });
+    }
+
+    pub(crate) fn get<T: Exposable + Debug>(&self) -> Option<T> {
+        let opt = self.exposed.get(&T::NAME_HASH);
+        // unsafe { std::mem::transmute::<_, Option<&T>>(opt) }.map(|boxed| (*boxed).clone())
+        let opt = opt.map(|ptr| (unsafe { black_box(std::mem::transmute::<_, &T>(*ptr)) }));
+
+        // if let Some(ptr) = opt {
+        //     println!("gurt {:p}", ptr);
+        // }
+        // dbg!(&opt);
+
+        opt.cloned()
     }
 }

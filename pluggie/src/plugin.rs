@@ -1,10 +1,6 @@
-use abi_stable::{
-    StableAbi,
-    external_types::RMutex,
-    std_types::{RArc, RString},
-};
+use abi_stable::{StableAbi, std_types::RString};
 
-use crate::internal_pluggie_context::InternalPluggieCtx;
+use crate::pluggie_context::PluggieCtx;
 
 #[derive(StableAbi, Clone)]
 #[repr(C)]
@@ -15,10 +11,10 @@ pub struct PluginInfo {
     pub pluggie_version: u32,
 }
 
-#[derive(StableAbi, Clone)]
+#[derive(Clone)]
 #[repr(C)]
 pub struct PluginRef {
-    pub init: extern "C" fn(ctx: RArc<RMutex<InternalPluggieCtx>>),
+    pub init: extern "C" fn(ctx: PluggieCtx),
     pub plugin_info: PluginInfo,
 }
 
@@ -26,15 +22,16 @@ pub struct PluginRef {
 macro_rules! describe_plugin {
     ($init:ident, $info: expr) => {
         pub extern "C" fn __pluggie_init(
-            ctx: pluggie::reexports::abi_stable::std_types::RArc<
-                pluggie::reexports::abi_stable::external_types::RMutex<
-                    pluggie::internal_pluggie_context::InternalPluggieCtx,
-                >,
-            >,
+            // ctx: pluggie::reexports::abi_stable::std_types::RArc<
+            //     pluggie::reexports::abi_stable::external_types::RMutex<
+            //         pluggie::internal_pluggie_context::InternalPluggieCtx,
+            //     >,
+            // >,
+            ctx: pluggie::pluggie_context::PluggieCtx,
         ) {
             // this is here so that the compiler doesn't complain about unused imports for PluginInfo, same with the pub extern "C" in __pluggie_init
             let _ = $info;
-            $init(PluggieCtx::new(ctx));
+            $init(ctx);
         }
 
         #[unsafe(no_mangle)]
