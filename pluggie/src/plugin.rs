@@ -11,6 +11,14 @@ pub struct PluginInfo {
     pub pluggie_version: u32,
 }
 
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, StableAbi)]
+pub struct PluginId(pub(crate) u32);
+
+impl PluginId {
+    pub const PLUGGIE_ID: PluginId = PluginId(0);
+}
+
 #[derive(Clone)]
 #[repr(C)]
 pub struct PluginRef {

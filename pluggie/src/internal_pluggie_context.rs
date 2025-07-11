@@ -1,6 +1,13 @@
-use std::{ffi::c_void, fmt::Debug, hint::black_box, marker::PhantomData};
+use std::{
+    collections::HashMap, ffi::c_void, fmt::Debug, hint::black_box, marker::PhantomData, sync::Arc,
+};
 
-use crate::{event::Event, exposable::Exposable, to_void};
+use crate::{
+    event::Event,
+    exposable::Exposable,
+    plugin::{PluginId, PluginRef},
+    to_void,
+};
 use abi_stable::{
     StableAbi,
     external_types::RRwLock,
@@ -12,6 +19,7 @@ use abi_stable::{
 pub struct ChannelFunc {
     func: *mut c_void,
     priority: f32,
+    plugin_id: PluginId,
 }
 
 #[repr(C)]
@@ -19,6 +27,8 @@ pub struct InternalPluggieCtx {
     // channels_subscribes: RHashMap<[u8; 32], RReceiver<usize>>,
     channel_calls: RHashMap<[u8; 32], RArc<RRwLock<RVec<ChannelFunc>>>>,
     exposed: RHashMap<[u8; 32], usize>,
+    pub(crate) plugins_map: Arc<HashMap<PluginId, Arc<PluginRef>>>,
+    pub(crate) plugins: Vec<Arc<PluginRef>>,
 }
 
 pub struct InternalEventSender<T: Event> {
@@ -44,11 +54,19 @@ impl<T: Event> InternalEventSender<T> {
 }
 
 impl InternalPluggieCtx {
-    pub fn new() -> Self {
+    pub fn new(plugins: Vec<Arc<PluginRef>>) -> Self {
         Self {
             // channels_subscribes: RHashMap::new(),
             channel_calls: RHashMap::new(),
             exposed: RHashMap::new(),
+            plugins_map: Arc::new(
+                plugins
+                    .iter()
+                    .enumerate()
+                    .map(|(i, v)| (PluginId(i as u32 + 1), v.clone()))
+                    .collect(),
+            ),
+            plugins,
         }
     }
 
@@ -65,7 +83,12 @@ impl InternalPluggieCtx {
         }
     }
 
-    pub(crate) fn subscribe<T: Event>(&mut self, closure: Box<dyn Fn(usize)>, priority: f32) {
+    pub(crate) fn subscribe<T: Event>(
+        &mut self,
+        closure: Box<dyn Fn(usize)>,
+        priority: f32,
+        plugin_id: PluginId,
+    ) {
         // TODO: fix the memory leak here
         let raw = Box::into_raw(closure);
         let void_ptr = {
@@ -83,6 +106,7 @@ impl InternalPluggieCtx {
         calls.push(ChannelFunc {
             func: void_ptr,
             priority,
+            plugin_id,
         });
         calls.sort_by(|a, b| b.priority.partial_cmp(&a.priority).unwrap());
         // println!();

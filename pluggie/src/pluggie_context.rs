@@ -1,4 +1,4 @@
-use std::{fmt::Debug, hint::black_box, marker::PhantomData};
+use std::{collections::HashMap, fmt::Debug, hint::black_box, marker::PhantomData, sync::Arc};
 
 use abi_stable::{
     external_types::RMutex,
@@ -13,6 +13,7 @@ use crate::{
     exposable::Exposable,
     from_void,
     internal_pluggie_context::{InternalEventSender, InternalPluggieCtx},
+    plugin::{PluginId, PluginRef},
     to_void,
 };
 
@@ -20,6 +21,7 @@ use crate::{
 #[repr(C)]
 pub struct PluggieCtx {
     internal: RArc<RMutex<InternalPluggieCtx>>,
+    plugin_id: PluginId,
 }
 
 unsafe impl Send for PluggieCtx {}
@@ -28,8 +30,16 @@ pub struct EventSender<T: Event>(InternalEventSender<T>);
 unsafe impl<T: Event> Send for EventSender<T> {}
 
 impl PluggieCtx {
-    pub fn new(internal: RArc<RMutex<InternalPluggieCtx>>) -> Self {
-        Self { internal }
+    pub fn clone_with_plugin_id(&self, new_id: PluginId) -> Self {
+        let mut new = self.clone();
+        new.plugin_id = new_id;
+        new
+    }
+    pub fn new(internal: RArc<RMutex<InternalPluggieCtx>>, plugin_id: PluginId) -> Self {
+        Self {
+            internal,
+            plugin_id,
+        }
     }
     pub fn register_event<T: Event>(&self) -> EventSender<T> {
         let mut lock = self.internal.lock();
@@ -59,17 +69,69 @@ impl PluggieCtx {
                 f(black_box(event_ref));
             }),
             priority,
+            self.plugin_id,
         );
     }
     pub fn expose<T: Exposable>(&self, value: T) {
         let mut lock = self.internal.lock();
-        println!("Exposing {} ({:?})", T::NAME, T::NAME_HASH);
+        println!("Exposing {}", T::NAME);
         lock.expose(value);
     }
     pub fn get<T: Exposable + Debug>(&self) -> Option<T> {
         let lock = self.internal.lock();
-        println!("Getting exposed value of {} ({:?})", T::NAME, T::NAME_HASH);
         lock.get()
+    }
+    pub fn get_plugin_map(&self) -> Arc<HashMap<PluginId, Arc<PluginRef>>> {
+        let lock = self.internal.lock();
+        lock.plugins_map.clone()
+    }
+    pub fn info(&self, message: &str) {
+        let name = self
+            .internal
+            .lock()
+            .plugins_map
+            .get(&self.plugin_id)
+            .expect("The plugin that called this should exist")
+            .plugin_info
+            .name
+            .clone();
+        println!("INFO [{}]: {}", name, message);
+    }
+    pub fn warn(&self, message: &str) {
+        let name = self
+            .internal
+            .lock()
+            .plugins_map
+            .get(&self.plugin_id)
+            .expect("The plugin that called this should exist")
+            .plugin_info
+            .name
+            .clone();
+        eprintln!("WARN [{}]: {}", name, message);
+    }
+    pub fn error(&self, message: &str) {
+        let name = self
+            .internal
+            .lock()
+            .plugins_map
+            .get(&self.plugin_id)
+            .expect("The plugin that called this should exist")
+            .plugin_info
+            .name
+            .clone();
+        eprintln!("ERROR [{}]: {}", name, message);
+    }
+    pub fn fatal(&self, message: &str) {
+        let name = self
+            .internal
+            .lock()
+            .plugins_map
+            .get(&self.plugin_id)
+            .expect("The plugin that called this should exist")
+            .plugin_info
+            .name
+            .clone();
+        eprintln!("FATAL [{}]: {}", name, message);
     }
 }
 
@@ -89,7 +151,7 @@ impl<T: Event> EventSender<T> {
         self.0.call(unsafe { to_void(r_ptr) });
         let hooks = r.hooks.post_event_hooks();
         for hook in hooks.into_iter() {
-            hook(event);
+            hook.call_once((event,));
             // Box::leak(hook);
         }
     }

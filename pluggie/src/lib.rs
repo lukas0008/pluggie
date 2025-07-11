@@ -2,8 +2,9 @@
 #![feature(fn_traits)]
 #![feature(tuple_trait)]
 
+use std::sync::Arc;
+
 use crate::{event::Event, plugin::PluginRef};
-use abi_stable::std_types::RVec;
 
 pub mod curry;
 pub mod event;
@@ -32,7 +33,7 @@ macro_rules! name_hash {
 #[derive(Clone)]
 #[repr(transparent)]
 pub struct AllLoadedEvent {
-    pub plugins: RVec<PluginRef>,
+    pub plugins: Vec<Arc<PluginRef>>,
 }
 
 pub unsafe fn to_void<'a, T: Sized>(value: &'a T) -> usize {
