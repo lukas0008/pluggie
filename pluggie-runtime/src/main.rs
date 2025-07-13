@@ -9,13 +9,18 @@ use pluggie::{
 };
 
 fn main() {
+    #[cfg(target_os = "macos")]
+    let os_ext = "dylib";
+    #[cfg(target_os = "linux")]
+    let os_ext = "so";
+
     let plugin_paths = std::fs::read_dir("./plugins").unwrap();
     let mut paths = Vec::new();
     for plugin in plugin_paths {
         match plugin {
             Ok(entry) => {
                 let path = entry.path();
-                if path.is_file() && path.extension().unwrap_or_default() == "so" {
+                if path.is_file() && path.extension().unwrap_or_default() == os_ext {
                     paths.push(path);
                 }
             }
