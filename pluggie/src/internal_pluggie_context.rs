@@ -22,6 +22,9 @@ pub struct ChannelFunc {
     plugin_id: PluginId,
 }
 
+unsafe impl Send for ChannelFunc {}
+unsafe impl Sync for ChannelFunc {}
+
 #[repr(C)]
 pub struct InternalPluggieCtx {
     // channels_subscribes: RHashMap<[u8; 32], RReceiver<usize>>,
