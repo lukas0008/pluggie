@@ -29,7 +29,7 @@ fn main() {
     }
 
     println!(
-        "Loading the following libraries: {}",
+        "INFO [pluggie]: Loading the following libraries: {}",
         paths
             .iter()
             .filter_map(|v| v.file_name().map(|v| v.to_str()))
@@ -43,7 +43,7 @@ fn main() {
         .map(|path| {
             let lib = unsafe { libloading::Library::new(&path) }
                 .expect(&format!("Failed to load plugin: {}", path.display()));
-            lib
+            (lib, path)
         })
         .collect::<Vec<_>>();
     // let lib = Plugin_Ref::load_from_file(&path);
@@ -52,15 +52,16 @@ fn main() {
 
     // extern "C" fn(RArc<RMutex<InternalPluggieCtx>>)
     let mut plugin_refs = Vec::new();
-    for plugin in plugins.iter() {
+    for (plugin, _path) in plugins.iter() {
         // let init: libloading::Symbol<extern "C" fn(RArc<RMutex<InternalPluggieCtx>>)> =
         //     unsafe { plugin.get(b"pluggie_init") }.unwrap();
         // init(ctx.clone());
+        // println!("{}", path.file_name().unwrap().to_str().unwrap());
         let init: libloading::Symbol<extern "C" fn() -> PluginRef> =
             unsafe { plugin.get(b"pluggie_def") }.unwrap();
         let plugin = init();
         // (plugin.init)(local_ctx.clone());
-        println!("{} loaded", plugin.plugin_info.name);
+        println!("INFO [pluggie]: {} loaded", plugin.plugin_info.name);
         if plugin.plugin_info.pluggie_version != pluggie::VERSION {
             panic!(
                 "Plugin {} has incompatible version",

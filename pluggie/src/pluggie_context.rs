@@ -72,9 +72,14 @@ impl PluggieCtx {
             self.plugin_id,
         );
     }
+    /// Exposes a value so that it can be accessed by other plugins.
+    ///
+    /// The value type **SHOULD NOT HAVE ANY METHODS AT ALL** the only acceptable methods are those that only call a function, which is a field of the value type.
+    ///
+    /// For an example of how to expose methods in this way, look at mc-network::NetworkContext
     pub fn expose<T: Exposable>(&self, value: T) {
         let mut lock = self.internal.lock();
-        println!("Exposing {}", T::NAME);
+        println!("INFO [pluggie]: Exposing {}", T::NAME);
         lock.expose(value);
     }
     pub fn get<T: Exposable + Debug>(&self) -> Option<T> {
