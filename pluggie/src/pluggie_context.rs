@@ -82,7 +82,7 @@ impl PluggieCtx {
         println!("INFO [pluggie]: Exposing {}", T::NAME);
         lock.expose(value);
     }
-    pub fn get<T: Exposable + Debug>(&self) -> Option<T> {
+    pub fn get<T: Exposable>(&self) -> Option<T> {
         let lock = self.internal.lock();
         lock.get()
     }

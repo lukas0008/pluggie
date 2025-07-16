@@ -24,19 +24,13 @@ impl PluginId {
 pub struct PluginRef {
     pub init: extern "C" fn(ctx: PluggieCtx),
     pub plugin_info: PluginInfo,
+    pub load_early: bool,
 }
 
 #[macro_export]
 macro_rules! describe_plugin {
     ($init:ident, $info: expr) => {
-        pub extern "C" fn __pluggie_init(
-            // ctx: pluggie::reexports::abi_stable::std_types::RArc<
-            //     pluggie::reexports::abi_stable::external_types::RMutex<
-            //         pluggie::internal_pluggie_context::InternalPluggieCtx,
-            //     >,
-            // >,
-            ctx: pluggie::pluggie_context::PluggieCtx,
-        ) {
+        pub extern "C" fn __pluggie_init(ctx: pluggie::pluggie_context::PluggieCtx) {
             // this is here so that the compiler doesn't complain about unused imports for PluginInfo, same with the pub extern "C" in __pluggie_init
             let _ = $info;
             $init(ctx);
@@ -48,6 +42,7 @@ macro_rules! describe_plugin {
             pluggie::plugin::PluginRef {
                 init: __pluggie_init,
                 plugin_info: $info,
+                load_early: false,
             }
         }
     };

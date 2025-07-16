@@ -74,8 +74,14 @@ fn main() {
     let local_ctx = PluggieCtx::new(ctx.clone(), PluginId::PLUGGIE_ID);
     let loaded_event = local_ctx.register_event::<AllLoadedEvent>();
 
-    for (plugin_id, plugin) in local_ctx.get_plugin_map().iter() {
-        (plugin.init)(local_ctx.clone_with_plugin_id(*plugin_id));
+    {
+        let plugin_map = local_ctx.get_plugin_map();
+        for (plugin_id, plugin) in plugin_map.iter().filter(|(_, plugin)| plugin.load_early) {
+            (plugin.init)(local_ctx.clone_with_plugin_id(*plugin_id));
+        }
+        for (plugin_id, plugin) in plugin_map.iter().filter(|(_, plugin)| !plugin.load_early) {
+            (plugin.init)(local_ctx.clone_with_plugin_id(*plugin_id));
+        }
     }
 
     loaded_event.call(&AllLoadedEvent {

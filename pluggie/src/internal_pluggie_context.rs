@@ -127,7 +127,7 @@ impl InternalPluggieCtx {
         self.exposed.insert(T::NAME_HASH, unsafe { to_void(ptr) });
     }
 
-    pub(crate) fn get<T: Exposable + Debug>(&self) -> Option<T> {
+    pub(crate) fn get<T: Exposable>(&self) -> Option<T> {
         let opt = self.exposed.get(&T::NAME_HASH);
         // unsafe { std::mem::transmute::<_, Option<&T>>(opt) }.map(|boxed| (*boxed).clone())
         let opt = opt.map(|ptr| unsafe { black_box(std::mem::transmute::<_, &T>(*ptr)) });
