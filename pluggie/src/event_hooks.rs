@@ -13,6 +13,7 @@ use crate::event::Event;
 pub(crate) struct EventHooksInternal {
     pub(crate) post_event_hooks: RVec<RBox<*const c_void>>,
 }
+unsafe impl Send for EventHooksInternal {}
 
 #[derive(StableAbi)]
 #[repr(C)]

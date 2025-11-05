@@ -1,20 +1,17 @@
-use std::{
-    collections::HashMap, ffi::c_void, fmt::Debug, hint::black_box, marker::PhantomData, sync::Arc,
-};
+use std::{collections::HashMap, ffi::c_void, hint::black_box, marker::PhantomData, sync::Arc};
 
 use crate::{
+    LogLevel,
     event::Event,
     exposable::Exposable,
     plugin::{PluginId, PluginRef},
     to_void,
 };
 use abi_stable::{
-    StableAbi,
     external_types::RRwLock,
     std_types::{RArc, RHashMap, RVec},
 };
 
-#[derive(StableAbi)]
 #[repr(C)]
 pub struct ChannelFunc {
     func: *mut c_void,
@@ -75,10 +72,7 @@ impl InternalPluggieCtx {
 
     pub(crate) fn register_event<T: Event>(&mut self) -> InternalEventSender<T> {
         let entry = self.channel_calls.entry(T::NAME_HASH);
-        let entry = entry.or_insert_with(|| {
-            let callers = RArc::new(RRwLock::new(RVec::new()));
-            callers
-        });
+        let entry = entry.or_insert_with(|| RArc::new(RRwLock::new(RVec::new())));
         InternalEventSender {
             // sender,
             callers: entry.clone(),
@@ -101,10 +95,7 @@ impl InternalPluggieCtx {
         };
 
         let calls = self.channel_calls.entry(T::NAME_HASH);
-        let calls = calls.or_insert_with(|| {
-            let callers = RArc::new(RRwLock::new(RVec::new()));
-            callers
-        });
+        let calls = calls.or_insert_with(|| RArc::new(RRwLock::new(RVec::new())));
         let mut calls = calls.write();
         calls.push(ChannelFunc {
             func: void_ptr,
@@ -130,7 +121,7 @@ impl InternalPluggieCtx {
     pub(crate) fn get<T: Exposable>(&self) -> Option<T> {
         let opt = self.exposed.get(&T::NAME_HASH);
         // unsafe { std::mem::transmute::<_, Option<&T>>(opt) }.map(|boxed| (*boxed).clone())
-        let opt = opt.map(|ptr| unsafe { black_box(std::mem::transmute::<_, &T>(*ptr)) });
+        let opt = opt.map(|ptr| unsafe { black_box(std::mem::transmute::<usize, &T>(*ptr)) });
 
         // if let Some(ptr) = opt {
         //     println!("gurt {:p}", ptr);
@@ -138,5 +129,22 @@ impl InternalPluggieCtx {
         // dbg!(&opt);
 
         opt.cloned()
+    }
+
+    pub(crate) fn log(&self, level: LogLevel, message: &str, plugin_id: PluginId) {
+        let write_str = format!(
+            "{} [{}]: {}\n",
+            level,
+            self.plugins_map
+                .get(&plugin_id)
+                .expect("The pluggin that called this should not exist")
+                .plugin_info
+                .name,
+            message
+        );
+        match level {
+            LogLevel::Info => print!("{write_str}"),
+            LogLevel::Warn | LogLevel::Error | LogLevel::Fatal => eprint!("{write_str}"),
+        }
     }
 }

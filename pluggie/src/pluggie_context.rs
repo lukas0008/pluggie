@@ -7,6 +7,7 @@ use abi_stable::{
 };
 
 use crate::{
+    LogLevel,
     event::Event,
     event_hooks::{EventHooks, EventHooksInternal},
     event_ref::{EventRef, EventRefInternal},
@@ -79,7 +80,12 @@ impl PluggieCtx {
     /// For an example of how to expose methods in this way, look at mc-network::NetworkContext
     pub fn expose<T: Exposable>(&self, value: T) {
         let mut lock = self.internal.lock();
-        println!("INFO [pluggie]: Exposing {}", T::NAME);
+        // println!("INFO [pluggie]: Exposing {}", T::NAME);
+        lock.log(
+            LogLevel::Info,
+            &format!("Exposing: {}", T::NAME),
+            self.plugin_id,
+        );
         lock.expose(value);
     }
     pub fn get<T: Exposable>(&self) -> Option<T> {
@@ -91,52 +97,24 @@ impl PluggieCtx {
         lock.plugins_map.clone()
     }
     pub fn info(&self, message: &str) {
-        let name = self
-            .internal
+        self.internal
             .lock()
-            .plugins_map
-            .get(&self.plugin_id)
-            .expect("The plugin that called this should exist")
-            .plugin_info
-            .name
-            .clone();
-        println!("INFO [{}]: {}", name, message);
+            .log(LogLevel::Info, message, self.plugin_id);
     }
     pub fn warn(&self, message: &str) {
-        let name = self
-            .internal
+        self.internal
             .lock()
-            .plugins_map
-            .get(&self.plugin_id)
-            .expect("The plugin that called this should exist")
-            .plugin_info
-            .name
-            .clone();
-        eprintln!("WARN [{}]: {}", name, message);
+            .log(LogLevel::Warn, message, self.plugin_id);
     }
     pub fn error(&self, message: &str) {
-        let name = self
-            .internal
+        self.internal
             .lock()
-            .plugins_map
-            .get(&self.plugin_id)
-            .expect("The plugin that called this should exist")
-            .plugin_info
-            .name
-            .clone();
-        eprintln!("ERROR [{}]: {}", name, message);
+            .log(LogLevel::Error, message, self.plugin_id);
     }
     pub fn fatal(&self, message: &str) {
-        let name = self
-            .internal
+        self.internal
             .lock()
-            .plugins_map
-            .get(&self.plugin_id)
-            .expect("The plugin that called this should exist")
-            .plugin_info
-            .name
-            .clone();
-        eprintln!("FATAL [{}]: {}", name, message);
+            .log(LogLevel::Fatal, message, self.plugin_id);
     }
 }
 

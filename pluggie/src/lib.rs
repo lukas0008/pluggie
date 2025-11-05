@@ -12,12 +12,14 @@ pub mod event_hooks;
 pub mod event_ref;
 pub mod exposable;
 pub mod internal_pluggie_context;
+mod log_level;
 pub mod pluggie_context;
 pub mod plugin;
 pub mod reexports {
     pub use abi_stable;
     pub use sha2_const;
 }
+pub use log_level::LogLevel;
 
 pub const VERSION: u32 = 0;
 
